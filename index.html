@@ -234,6 +234,62 @@
     }
 
     .next { min-height: 100vh; background: #000; }
+
+    @media (max-width: 768px) {
+      :root { --gap: 12px; --margin: 16px; }
+
+      .title {
+        font-size: 56px;
+      }
+      .title-caption {
+        grid-column: 1 / -1;
+      }
+      .title-caption__text {
+        font-size: 14px;
+        text-indent: 0;
+      }
+      .side-caption {
+        grid-column: 1 / -1;
+        min-height: auto;
+        margin-top: 24px;
+      }
+      .side-caption__row {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .side-caption__label {
+        width: auto;
+        font-size: 14px;
+      }
+      .side-caption__text {
+        font-size: 14px;
+        text-indent: 0;
+      }
+      .side-caption__meta span {
+        font-size: 14px;
+      }
+      .hero__ui {
+        padding-bottom: 24px;
+      }
+      .header {
+        padding-inline: 16px;
+        top: 16px;
+      }
+      .header__col { display: none; }
+      .header__logo-col { flex: 1; }
+      .feature-panel--right { grid-column: 1 / -1; }
+      .feature-panel--left { grid-column: 1 / -1; }
+      .feature-panel__text {
+        font-size: 20px;
+        text-indent: 0;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .title {
+        font-size: 40px;
+      }
+    }
   </style>
 </head>
 <body>
