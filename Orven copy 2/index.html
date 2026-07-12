@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hero</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500&display=swap" rel="stylesheet" />
+  <style>
+    :root { --gap: 24px; --margin: 32px; --ease-expo: cubic-bezier(0.16, 1, 0.3, 1); }
+    * { margin: 0; box-sizing: border-box; }
+    html, body { background: #000; overscroll-behavior: none; overscroll-behavior-y: none; }
+    body { font-family: 'Inter Tight', sans-serif; font-weight: 500; color: #fff; }
+
+    /* ---- 12-col grid (margin 32 / gutter 24 / stretch) ---- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      column-gap: var(--gap);
+      padding-inline: var(--margin);
+    }
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .grid-overlay.is-hidden { display: none; }
+    .grid-overlay__col { background: rgba(255, 0, 0, 0.1); }
+
+    /* ---- header (fixed) ---- */
+    .header {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 24px;
+      height: 58px;
+      padding-inline: 32px;
+      display: flex;
+      align-items: flex-start;
+      z-index: 100;
+      mix-blend-mode: difference;
+    }
+    .header__col {
+      flex: 1 1 0;
+      height: 58px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 0 24px;
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .header__col--end { align-items: flex-end; padding: 0 0 0 24px; }
+    .header__col--end .header__line { text-align: right; }
+    .header__logo-col {
+      flex: 1 1 0;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .header__logo {
+      font-size: 24px;
+      line-height: 100%;
+      letter-spacing: -0.04em;
+    }
+    .header__line {
+      font-size: 14px;
+      line-height: 100%;
+      letter-spacing: -0.03em;
+    }
+
+    /* ---- hero lower text cluster ---- */
+    .hero__ui {
+      position: fixed;
+      inset: 0;
+      height: 100vh;
+      align-content: end;
+      padding-bottom: 33px;
+      pointer-events: none;
+      mix-blend-mode: difference;
+    }
+    .hero__ui > * { pointer-events: auto; }
+
+    .title-caption {
+      grid-column: 1 / 7;
+      align-self: end;
+      display: flex;
+      flex-direction: column;
+    }
+    .title {
+      font-weight: 500;
+      font-size: 160px;
+      line-height: 100%;
+      letter-spacing: -0.04em;
+    }
+    .title-caption__text {
+      font-size: 18px;
+      line-height: 120%;
+      letter-spacing: -0.04em;
+      text-indent: 120px;
+    }
+
+    .side-caption {
+      grid-column: 9 / 13;
+      align-self: end;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 176px;
+    }
+    .side-caption__row {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+    }
+    .side-caption__label {
+      width: 120px;
+      flex: none;
+      font-size: 18px;
+      line-height: 120%;
+      letter-spacing: -0.04em;
+    }
+    .side-caption__text {
+      flex: 1;
+      font-size: 18px;
+      line-height: 120%;
+      letter-spacing: -0.04em;
+      text-indent: 120px;
+    }
+    .side-caption__meta {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 25px;
+    }
+    .side-caption__meta span {
+      font-size: 18px;
+      line-height: 120%;
+      letter-spacing: -0.04em;
+    }
+    /* .hero height must stay (SCRUB1_VH + FADE_VH + SCRUB2_VH + 1) * 100vh — see script constants below */
+    .hero { position: relative; height: 1200vh; }
+    .hero__sticky {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .hero__backdrop {
+      position: absolute;
+      inset: 0;
+      background: #000;
+    }
+    .hero__video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .hero__video--2 { opacity: 0; } /* hidden until the crossfade drives it */
+
+    /* ---- feature-list panels (video 2 scrub phase) ---- */
+    /* Fixed, top-level layer (NOT inside .hero__sticky) so mix-blend-mode can
+       reach the video backdrop — WebKit treats a sticky/overflow ancestor as a
+       backdrop-root that kills the blend. Blend lives on this wrapper, like the
+       header. z-index 60 keeps it above the hero video, below the header (100). */
+    .feature-panels {
+      position: fixed;
+      inset: 0;
+      padding-top: 82px; /* flush with the header's bottom edge (24px top + 58px height) */
+      pointer-events: none;
+      z-index: 60;
+      mix-blend-mode: difference;
+    }
+    .feature-panel { position: relative; grid-row: 1; align-self: start; display: flex; flex-direction: column; align-items: flex-end; gap: 24px; }
+    .feature-panel--right { grid-column: 9 / 12; }
+    .feature-panel--left { grid-column: 2 / 5; }
+    .feature-panel__line {
+      width: 95px;
+      height: 2px;
+      background: linear-gradient(90deg, #888DCC 0%, #02B5B8 25.96%, #868D0A 55.77%, #B2A2B6 95.19%);
+    }
+    .feature-panel__body {
+      align-self: stretch;
+      /* blend now lives on the .feature-panels wrapper (Safari-safe) */
+    }
+    .feature-panel__shift {
+      display: flex;
+      flex-direction: column;
+      gap: 80px;
+    }
+    .feature-panel__text {
+      font-weight: 400;
+      font-size: 32px;
+      line-height: 120%;
+      letter-spacing: -0.04em;
+      text-indent: 120px;
+    }
+    .feature-panel__list { display: flex; flex-direction: column; gap: 16px; }
+    .feature-panel__divider { border-top: 1px solid #fff; }
+    .feature-panel__rows { display: flex; flex-direction: column; gap: 12px; }
+    .feature-panel__row { display: flex; flex-direction: row; align-items: center; gap: 12px; }
+    .feature-panel__bar { flex: none; width: 6px; height: 14px; background: #fff; }
+    .feature-panel__label,
+    .feature-panel__value,
+    .feature-panel__code {
+      flex: 1;
+      font-size: 14px;
+      line-height: 100%;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .feature-panel__value, .feature-panel__code { text-align: right; }
+
+    /* ---- word/char stagger reveal (design-dna: canonical hidden state +
+       per-segment disintegration exit, expo-out, 0.4s enter / 0.3s exit) ---- */
+    .reveal-word {
+      --stagger: 0.05s;
+      display: inline-block;
+      white-space: pre;
+      text-indent: 0; /* inline-block creates its own first line — reset the
+                          inherited paragraph text-indent so it doesn't apply
+                          (and inflate width) on every individual word */
+      opacity: 0;
+      filter: blur(10px);
+      transform: translateY(20px);
+      transition: opacity 0.4s var(--ease-expo),
+                  filter 0.4s var(--ease-expo),
+                  transform 0.4s var(--ease-expo);
+      transition-delay: calc(var(--i) * var(--stagger));
+    }
+    .reveal-active .reveal-word {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateY(0);
+    }
+    .reveal-exit .reveal-word {
+      opacity: 0;
+      filter: blur(9px);
+      transform: translateY(-28px);
+      transition-duration: 0.3s;
+    }
+
+    .next { min-height: 100vh; background: #000; }
+  </style>
+</head>
+<body>
+  <div class="grid-overlay grid is-hidden" aria-hidden="true">
+    <div class="grid-overlay__col"></div><div class="grid-overlay__col"></div>
+    <div class="grid-overlay__col"></div><div class="grid-overlay__col"></div>
+    <div class="grid-overlay__col"></div><div class="grid-overlay__col"></div>
+    <div class="grid-overlay__col"></div><div class="grid-overlay__col"></div>
+    <div class="grid-overlay__col"></div><div class="grid-overlay__col"></div>
+    <div class="grid-overlay__col"></div><div class="grid-overlay__col"></div>
+  </div>
+
+  <header class="header">
+    <div class="header__logo-col">
+      <span class="header__logo">Orven®</span>
+    </div>
+    <div class="header__col">
+      <span class="header__line">Precision engineered</span>
+      <span class="header__line">Essential</span>
+      <span class="header__line">Proven</span>
+    </div>
+    <div class="header__col">
+      <span class="header__line">Innovation Redefined</span>
+      <span class="header__line">Our Story</span>
+    </div>
+    <div class="header__col header__col--end">
+      <span class="header__line">+ Cart</span>
+    </div>
+  </header>
+
+  <div class="feature-panels grid">
+    <div class="feature-panel feature-panel--right">
+      <div class="feature-panel__line"></div>
+      <div class="feature-panel__body">
+        <div class="feature-panel__shift">
+          <p class="feature-panel__text">Precision-ground lenses hold razor clarity from edge to edge. Tuned to kill glare, lift contrast, and stay flawless through speed, sweat, and grit.</p>
+          <div class="feature-panel__list">
+            <div class="feature-panel__divider"></div>
+            <div class="feature-panel__rows">
+              <div class="feature-panel__row">
+                <span class="feature-panel__bar"></span>
+                <span class="feature-panel__label">Clarity</span>
+                <span class="feature-panel__value">98%</span>
+              </div>
+              <div class="feature-panel__row">
+                <span class="feature-panel__bar"></span>
+                <span class="feature-panel__label">Contrast</span>
+                <span class="feature-panel__value">94%</span>
+              </div>
+              <div class="feature-panel__row">
+                <span class="feature-panel__bar"></span>
+                <span class="feature-panel__label">UV Filter</span>
+                <span class="feature-panel__code">400nm</span>
+                <span class="feature-panel__value">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-panel feature-panel--left">
+      <div class="feature-panel__line"></div>
+      <div class="feature-panel__body">
+        <div class="feature-panel__shift">
+          <p class="feature-panel__text">Aerospace-grade polymer flexes under load and springs back unbroken. Built to swallow impact, shed heat, and stay locked through every hard mile.</p>
+          <div class="feature-panel__list">
+            <div class="feature-panel__divider"></div>
+            <div class="feature-panel__rows">
+              <div class="feature-panel__row">
+                <span class="feature-panel__bar"></span>
+                <span class="feature-panel__label">Frame Weight</span>
+                <span class="feature-panel__value">22g</span>
+              </div>
+              <div class="feature-panel__row">
+                <span class="feature-panel__bar"></span>
+                <span class="feature-panel__label">Impact Rating</span>
+                <span class="feature-panel__value">Z87+</span>
+              </div>
+              <div class="feature-panel__row">
+                <span class="feature-panel__bar"></span>
+                <span class="feature-panel__label">Field</span>
+                <span class="feature-panel__code">180°</span>
+                <span class="feature-panel__value">Wide</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="hero__sticky">
+      <div class="hero__backdrop"></div>
+      <video class="hero__video hero__video--2" muted playsinline preload="auto">
+        <source src="hero2.mp4" type="video/mp4" />
+      </video>
+      <video class="hero__video hero__video--1" muted playsinline preload="auto">
+        <source src="hero.mp4" type="video/mp4" />
+      </video>
+    </div>
+    <div class="hero__ui grid">
+      <div class="title-caption">
+        <h1 class="title">Orven®</h1>
+        <p class="title-caption__text">Performance optics engineered for crystal vision. Precision-crafted lenses tested for durability. Superior technology. Built for excellence</p>
+      </div>
+      <div class="side-caption">
+        <div class="side-caption__row">
+          <span class="side-caption__label">Info</span>
+          <p class="side-caption__text">Advanced lens engineering meets optical excellence. Every frame tested for impact resistance. Precision optics drive performance vision forward</p>
+        </div>
+        <div class="side-caption__meta">
+          <span>(Drop)</span>
+          <span>(2026)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="next"></section>
+
+  <script>
+    const hero = document.querySelector('.hero');
+    const video1 = document.querySelector('.hero__video--1');
+    const video2 = document.querySelector('.hero__video--2');
+    const rightPanel = document.querySelector('.feature-panel--right');
+    const leftPanel = document.querySelector('.feature-panel--left');
+    const heroUi = document.querySelector('.hero__ui');
+    // Natural top offset (padding-top of .feature-panels), cached BEFORE any
+    // scroll-driven `top` is applied — reading offsetTop later would include the
+    // applied `top` (position:relative feeds back) and corrupt the exit math.
+    const rightBaseTop = rightPanel.offsetTop;
+    const leftBaseTop = leftPanel.offsetTop;
+
+    // ---- word/char stagger reveal ----
+    // Splits an element's text into per-segment spans (word or char), each
+    // carrying its own --i (cascade index) and --stagger (interval). Three CSS
+    // states per container: base/hidden (never revealed), .reveal-active
+    // (entering), .reveal-exit (dissolving upward — only used once it has
+    // actually been visible, so scrolling past before it ever appeared stays
+    // silently hidden instead of firing a pointless exit animation).
+    function splitReveal(el, per, stagger) {
+      const source = el.textContent;
+      const segments = per === 'char' ? [...source] : source.split(/(\s+)/);
+      el.textContent = '';
+      const spans = [];
+      segments.forEach((seg) => {
+        if (per === 'word' && /^\s+$/.test(seg)) { el.appendChild(document.createTextNode(seg)); return; }
+        if (seg === '') return;
+        const span = document.createElement('span');
+        span.className = 'reveal-word';
+        span.style.setProperty('--i', spans.length);
+        span.style.setProperty('--stagger', `${stagger}s`);
+        span.textContent = seg;
+        el.appendChild(span);
+        spans.push(span);
+      });
+      el.__revealSpans = spans;
+    }
+
+    function setRevealState(el, active) {
+      if (!el.__revealSpans) return;
+      const prev = el.__revealed;
+      if (active === prev) return;
+      el.__revealed = active;
+      if (active) {
+        el.classList.remove('reveal-exit');
+        el.classList.add('reveal-active');
+      } else {
+        el.classList.remove('reveal-active');
+        if (prev === true) el.classList.add('reveal-exit'); // only dissolve if it was actually shown
+      }
+    }
+
+    const titleEl = document.querySelector('.title');
+    const titleCaptionEl = document.querySelector('.title-caption__text');
+    const sideLabelEl = document.querySelector('.side-caption__label');
+    const sideTextEl = document.querySelector('.side-caption__text');
+    const sideMetaEls = [...document.querySelectorAll('.side-caption__meta span')];
+    const rightText = document.querySelector('.feature-panel--right .feature-panel__text');
+    const leftText = document.querySelector('.feature-panel--left .feature-panel__text');
+
+    splitReveal(titleEl, 'char', 0.025);
+    splitReveal(titleCaptionEl, 'word', 0.05);
+    splitReveal(sideLabelEl, 'word', 0.05);
+    splitReveal(sideTextEl, 'word', 0.05);
+    sideMetaEls.forEach((el) => splitReveal(el, 'word', 0.05));
+    splitReveal(rightText, 'word', 0.05);
+    splitReveal(leftText, 'word', 0.05);
+
+    // Hero title cluster gets its staggered entrance once, on load — the studio-
+    // site "titles arriving" moment — independent of scroll (it plays at scroll 0).
+    const heroRevealEls = [titleEl, titleCaptionEl, sideLabelEl, sideTextEl, ...sideMetaEls];
+    heroRevealEls.forEach((el) => setRevealState(el, true));
+
+    const SCRUB1_VH = 3; // video 1 scrub segment
+    const FADE_VH = 3;   // crossfade segment
+    const SCRUB2_VH = 5; // video 2 scrub segment (video 2 is longer, paced to match)
+    const MAX_BLUR = 80; // px, at full fade
+    // Phase-3 (video 2 scrub) sub-timeline, in scrub2Progress units:
+    const R_END = 0.40;    // right panel scrolls through over [0, R_END]
+    const L_START = 0.45;  // small video-only gap, then left over [L_START, L_END]
+    const L_END = 0.85;
+    const VIDEO_HOLD = 0.80; // video reaches last frame here, then holds to 1.0
+
+    // Each panel scrolls linearly through the fixed viewport (enters from below,
+    // exits off the top). Movement is driven via `top` (not transform) so there
+    // is NO GPU-promoted layer inside the blended .feature-panels wrapper — the
+    // whole panel (gradient bar + body) moves together. Exit distance is computed
+    // in px from the panel's own geometry so it FULLY clears the top on any height.
+    function applyPanelScroll(panel, baseTop, subRaw) {
+      const sub = Math.min(Math.max(subRaw, 0), 1);
+      const enterPx = window.innerHeight + 60;                    // fully below the fold
+      const exitPx = -(baseTop + panel.offsetHeight + 60);        // fully above the fold (offsetHeight is stable under `top`)
+      const y = enterPx + (exitPx - enterPx) * sub;
+      panel.style.top = `${y}px`;
+    }
+
+    // RAF-lerp scrub engine (design-dna canonical pattern): onScroll only sets
+    // a cheap `target`; a persistent rAF loop smoothly chases it with `current`
+    // and only issues a real seek once the smoothed value has drifted past a
+    // deadband, throttled to ~30ms between seeks. This is what makes scrubbing
+    // read as continuous motion instead of raw per-scroll-event frame jumps —
+    // and it does LESS decoder work than instant 1:1 seeking during fast scroll,
+    // since seeks are capped in rate and the loop auto-stops once settled.
+    const LERP_K = 0.09;          // 0.08 (heavier/smoother) .. 0.12 (snappier); 0.09 leans smooth
+    const SEEK_DEADBAND = 0.02;   // seconds — only re-seek once drift exceeds this
+    const SEEK_MIN_INTERVAL = 30; // ms — hard floor between real seeks
+
+    function createScrubber(video) {
+      const state = { ready: false, seeking: false, target: 0, current: 0, lastSeek: 0 };
+      // iOS Safari only renders seeked frames after a (muted) play tick.
+      // pause() must fire synchronously, not inside .then() — waiting for the
+      // play() promise to resolve lets the video visibly play for a moment first.
+      video.addEventListener('loadedmetadata', () => {
+        state.ready = true;
+        const primePlay = video.play();
+        video.pause();
+        if (primePlay) primePlay.catch(() => {});
+        onScroll();
+      });
+      video.addEventListener('seeked', () => { state.seeking = false; });
+      return state;
+    }
+
+    function tickScrubber(video, state, now) {
+      if (!state.ready || !isFinite(video.duration)) return true; // nothing to do — "settled"
+      state.current += (state.target - state.current) * LERP_K;
+      if (Math.abs(state.target - state.current) < 0.0005) state.current = state.target;
+      if (!state.seeking && Math.abs(state.current - video.currentTime) > SEEK_DEADBAND && now - state.lastSeek > SEEK_MIN_INTERVAL) {
+        state.seeking = true;
+        state.lastSeek = now;
+        video.currentTime = state.current;
+      }
+      return state.current === state.target;
+    }
+
+    let rafId = null;
+    function rafLoop(now) {
+      const settled1 = tickScrubber(video1, state1, now);
+      const settled2 = tickScrubber(video2, state2, now);
+      rafId = (settled1 && settled2) ? null : requestAnimationFrame(rafLoop);
+    }
+    function kickRaf() {
+      if (rafId == null) rafId = requestAnimationFrame(rafLoop);
+    }
+
+    const state1 = createScrubber(video1);
+    const state2 = createScrubber(video2);
+
+    function onScroll() {
+      const scrub1Px = SCRUB1_VH * window.innerHeight;
+      const fadePx = FADE_VH * window.innerHeight;
+      const scrub2Px = SCRUB2_VH * window.innerHeight;
+      const scrollY = window.scrollY;
+
+      const scrub1Progress = scrub1Px > 0 ? Math.min(Math.max(scrollY / scrub1Px, 0), 1) : 0;
+      if (state1.ready) {
+        state1.target = scrub1Progress * (video1.duration || 0);
+      }
+
+      // Title/captions stay pinned (position:fixed) through the first 80% of
+      // video 1's scrub, then over the last 20% drift up slightly and fade to 0 —
+      // gone right as the blur (phase 2) begins. Transform only during the fade
+      // (masked by opacity), so the blend is never perturbed while fully visible.
+      const uiFade = Math.min(Math.max((scrub1Progress - 0.8) / 0.2, 0), 1);
+      heroUi.style.opacity = 1 - uiFade;
+      heroUi.style.transform = uiFade > 0 ? `translateY(${-uiFade * 120}px)` : '';
+      // Per-word dissolve fires early in the block fade (uiFade > 0.15) so the
+      // words have already blurred out individually before the container itself
+      // is even halfway gone — richer exit than a flat block fade.
+      heroRevealEls.forEach((el) => setRevealState(el, uiFade < 0.15));
+
+      const fadeProgress = fadePx > 0 ? Math.min(Math.max((scrollY - scrub1Px) / fadePx, 0), 1) : 0;
+      video1.style.opacity = 1 - fadeProgress;
+      video1.style.filter = fadeProgress > 0 ? `blur(${fadeProgress * MAX_BLUR}px)` : '';
+      video2.style.opacity = fadeProgress;
+
+      const scrub2Progress = scrub2Px > 0 ? Math.min(Math.max((scrollY - scrub1Px - fadePx) / scrub2Px, 0), 1) : 0;
+      if (state2.ready) {
+        // Video reaches its last frame at VIDEO_HOLD, then holds — leaving a tail
+        // where the panels finish leaving before the sticky unpins to .next.
+        const videoProgress = Math.min(scrub2Progress / VIDEO_HOLD, 1);
+        state2.target = videoProgress * (video2.duration || 0);
+      }
+
+      const subR = scrub2Progress / R_END;
+      const subL = (scrub2Progress - L_START) / (L_END - L_START);
+      applyPanelScroll(rightPanel, rightBaseTop, subR);
+      applyPanelScroll(leftPanel, leftBaseTop, subL);
+      // Word-stagger reveal once each panel has settled into its readable
+      // window — buffer at both edges so the cascade fully plays before the
+      // panel visually leaves the screen.
+      setRevealState(rightText, subR > 0.12 && subR < 0.88);
+      setRevealState(leftText, subL > 0.12 && subL < 0.88);
+
+      kickRaf();
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+
+    // Toggle the red 12-col grid overlay with "g".
+    const gridOverlay = document.querySelector('.grid-overlay');
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'g' || e.key === 'G') gridOverlay.classList.toggle('is-hidden');
+    });
+  </script>
+</body>
+</html>
